@@ -1,0 +1,82 @@
+<mxfile host="app.diagrams.net" modified="2026-01-15T00:00:00.000Z" agent="iot_stream" version="22.0.0" type="device">
+  <!--
+    Flow diagram: Source -> Operators -> Windowing -> Backpressure -> Sink -> Dashboard
+    Mở bằng: https://app.diagrams.net  (File > Open from > Device)
+  -->
+  <diagram id="iot-stream-flow" name="iot_stream Flow">
+    <mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===== Tiêu đề ===== -->
+        <mxCell id="title" value="iot_stream — Data Flow" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#1a237e;" vertex="1" parent="1">
+          <mxGeometry x="500" y="20" width="500" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ===== 1. Source ===== -->
+        <mxCell id="source" value="&#xa;1. Source&#xa;&#xa;SensorSource&#xa;(SensorReading)&#xa;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="260" width="180" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ===== 2. Operators ===== -->
+        <mxCell id="ops" value="&#xa;2. Operators&#xa;&#xa;Map / Filter / FlatMap&#xa;(IStreamOperation)&#xa;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="270" y="260" width="200" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ===== 3. Windowing ===== -->
+        <mxCell id="win" value="&#xa;3. Windowing&#xa;&#xa;Tumbling / Sliding / Count&#xa;(IWindowStrategy)&#xa;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="520" y="260" width="200" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ===== 4. Backpressure ===== -->
+        <mxCell id="bp" value="&#xa;4. Backpressure&#xa;&#xa;Block / Drop / DropOldest / Buffer&#xa;(BackpressureSubscription)&#xa;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="770" y="260" width="220" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ===== 5. Sink ===== -->
+        <mxCell id="sink" value="&#xa;5. Sink&#xa;&#xa;Console / File / Memory / WebSocket&#xa;(IDataSink)&#xa;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1040" y="260" width="230" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ===== 6. Dashboard ===== -->
+        <mxCell id="dash" value="&#xa;6. Dashboard&#xa;&#xa;Python + matplotlib&#xa;(CSV tail-style)&#xa;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1320" y="260" width="200" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Edges (mũi tên nối) ===== -->
+        <mxCell id="e1" value="emit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=2;fontSize=10;fontColor=#333333;" edge="1" parent="1" source="source" target="ops">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="transform" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=2;fontSize=10;fontColor=#333333;" edge="1" parent="1" source="ops" target="win">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="accumulate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=2;fontSize=10;fontColor=#333333;" edge="1" parent="1" source="win" target="bp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="deliver" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=2;fontSize=10;fontColor=#333333;" edge="1" parent="1" source="bp" target="sink">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="write CSV" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=2;fontSize=10;fontColor=#333333;" edge="1" parent="1" source="sink" target="dash">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Feedback: demand/request ngược về Source ===== -->
+        <mxCell id="fb" value="request(n) / cancel()  ⟵  back-pressure signal" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#b85450;strokeWidth=2;fontSize=10;fontColor=#b85450;exitX=0.5;exitY=1;entryX=0.5;entryY=1;curved=1;" edge="1" parent="1" source="bp" target="source">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="880" y="440" />
+              <mxPoint x="130" y="440" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===== Ghi chú chiến lược backpressure ===== -->
+        <mxCell id="note" value="&#xa;Backpressure strategies:&#xa;&#xa;• Block       — producer chờ consumer&#xa;• Drop        — bỏ event mới&#xa;• DropOldest  — bỏ event cũ nhất&#xa;• Buffer      — xếp hàng (queue unbounded)&#xa;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;size=14;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="770" y="60" width="260" height="140" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

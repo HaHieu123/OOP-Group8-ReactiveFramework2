@@ -1,0 +1,228 @@
+@startuml class_diagram
+' ============================================================================
+' Sơ đồ lớp tổng thể framework iot_stream
+' Render: java -jar plantuml.jar uml/class_diagram.puml
+' ============================================================================
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+' ---------------------------------------------------------------------------
+' PACKAGE core — kiểu dữ liệu nền, reactive streams interfaces
+' ---------------------------------------------------------------------------
+package core {
+
+    interface IStream<T> {
+        + map(fn: Function<T,R>): IStream<R>
+        + filter(pred: Predicate<T>): IStream<T>
+        + subscribe(sub: Subscriber<T>): void
+    }
+
+    class DataStream<T> {
+        - upstream: Publisher<T>
+        - operations: List<IStreamOperation>
+        + map(fn): DataStream<R>
+        + filter(pred): DataStream<T>
+        + subscribe(sink): Subscription
+    }
+
+    interface Publisher<T> {
+        + subscribe(sub: Subscriber<T>): void
+    }
+
+    interface Subscriber<T> {
+        + onNext(item: T): void
+        + onError(err: Exception): void
+        + onComplete(): void
+    }
+
+    interface Subscription {
+        + request(n: long): void
+        + cancel(): void
+    }
+
+    class SimplePublisher<T> {
+        - subscribers: List<Subscriber<T>>
+        - executor: ThreadPool
+        + subscribe(sub: Subscriber<T>): void
+        + publish(item: T): void
+    }
+
+    class LambdaSubscriber<T> {
+        - onNextFn: Function<T, void>
+        - onErrorFn: Function<Exception, void>
+        + onNext(item: T): void
+        + onError(err: Exception): void
+    }
+
+    enum Severity {
+        INFO
+        WARN
+        ERROR
+    }
+
+    class Exceptions <<utility>> {
+        + {static} wrap(msg: String, cause: Exception): RuntimeException
+        + {static} unsupported(op: String): RuntimeException
+        + {static} invalidState(msg: String): RuntimeException
+    }
+}
+
+' ---------------------------------------------------------------------------
+' PACKAGE source — nguồn dữ liệu (cảm biến)
+' ---------------------------------------------------------------------------
+package source {
+
+    class SensorReading {
+        + timestamp: TimePoint
+        + sensorId: String
+        + temperature: double
+        + severity: Severity
+    }
+
+    class SensorSource {
+        - intervalMs: int
+        - running: atomic_bool
+        + start(): void
+        + stop(): void
+        + poll(): SensorReading
+    }
+}
+
+' ---------------------------------------------------------------------------
+' PACKAGE operators — map / filter / flatMap / windowing
+' ---------------------------------------------------------------------------
+package operators {
+
+    interface IStreamOperation<T, R> {
+        + apply(item: T): R
+        + name(): String
+    }
+
+    class MapOperation<T, R>
+    class FilterOperation<T>
+    class FlatMapOperation<T, R>
+
+    class Window<T> {
+        - strategy: IWindowStrategy
+        - buffer: List<T>
+        + push(item: T): void
+        + flush(): List<T>
+    }
+
+    interface IWindowStrategy {
+        + shouldEmit(count: long, elapsedMs: long): boolean
+        + reset(): void
+    }
+
+    class TumblingWindow
+    class SlidingWindow
+    class CountWindow
+
+    class Stats <<utility>> {
+        + {static} mean(values: List<double>): double
+        + {static} p50(values: List<double>): double
+        + {static} p95(values: List<double>): double
+        + {static} p99(values: List<double>): double
+    }
+}
+
+' ---------------------------------------------------------------------------
+' PACKAGE backpressure — chiến lược chống nghẽn
+' ---------------------------------------------------------------------------
+package backpressure {
+
+    enum BackpressureStrategy {
+        Block
+        Drop
+        DropOldest
+        Buffer
+    }
+
+    class BackpressureSubscription {
+        - strategy: BackpressureStrategy
+        - demand: atomic_long
+        - queue: Queue<T>
+        - dropped: atomic_long
+        + request(n: long): void
+        + cancel(): void
+        + offer(item: T): boolean
+        + droppedCount(): long
+    }
+}
+
+' ---------------------------------------------------------------------------
+' PACKAGE sinks — đích tiêu thụ event
+' ---------------------------------------------------------------------------
+package sinks {
+
+    interface IDataSink<T> {
+        + onNext(item: T): void
+        + onComplete(): void
+        + close(): void
+    }
+
+    class ConsoleSink {
+        - out: ostream
+    }
+
+    class FileSink {
+        - path: String
+        - writer: ofstream
+        - headerWritten: bool
+    }
+
+    class MemoryQueueSink {
+        - queue: Queue<T>
+        + drain(): List<T>
+    }
+
+    class WebSocketSink {
+        - endpoint: String
+        - connected: bool
+    }
+}
+
+' ============================================================================
+' QUAN HỆ
+' ============================================================================
+
+' --- Inheritance / Realization (cài đặt interface) ---
+DataStream          ..|> IStream
+SimplePublisher     ..|> Publisher
+LambdaSubscriber    ..|> Subscriber
+BackpressureSubscription ..|> Subscription
+
+SensorSource        --|> SimplePublisher
+
+MapOperation        ..|> IStreamOperation
+FilterOperation     ..|> IStreamOperation
+FlatMapOperation    ..|> IStreamOperation
+Window              ..|> IStreamOperation
+
+TumblingWindow      ..|> IWindowStrategy
+SlidingWindow       ..|> IWindowStrategy
+CountWindow         ..|> IWindowStrategy
+
+ConsoleSink         ..|> IDataSink
+FileSink            ..|> IDataSink
+MemoryQueueSink     ..|> IDataSink
+WebSocketSink       ..|> IDataSink
+
+' --- Composition (quan hệ sở hữu / vòng đời gắn) ---
+DataStream *-- Publisher
+SimplePublisher o-- Subscription
+Window *-- IWindowStrategy
+DataStream *-- IStreamOperation
+
+' --- Dependency (dùng tạm, không sở hữu) ---
+SensorSource ..> SensorReading : produces
+SensorReading ..> Severity : uses
+Window ..> Stats : uses
+BackpressureSubscription ..> BackpressureStrategy : uses
+FileSink ..> SensorReading : serializes
+DataStream ..> Exceptions : throws
+BackpressureSubscription ..> Exceptions : throws
+
+@enduml

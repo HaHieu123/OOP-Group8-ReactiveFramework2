@@ -1,0 +1,35 @@
+# ==============================================================================
+# Cấu hình Pipeline cho IoT Stream Processing Framework
+# ==============================================================================
+
+# Cấu hình nguồn phát dữ liệu (Data Source / Sensors)
+source:
+  sensors:
+    - S1   # Cảm biến nhiệt độ / độ ẩm khu vực 1
+    - S2   # Cảm biến nhiệt độ / độ ẩm khu vực 2
+    - S3   # Cảm biến áp suất / giám sát máy chủ
+  interval_ms: 100    # Tần suất phát telemetry: 100ms (10Hz)
+  duration_s: 10      # Tổng thời gian chạy mô phỏng: 10 giây (0 = chạy vô hạn)
+
+# Cấu hình xử lý luồng (Stream Operators & Windowing)
+pipeline:
+  filter_severity_min: WARN   # Lọc mức độ cảnh báo tối thiểu: INFO, WARN, ERROR, CRITICAL
+  window_type: tumbling       # Loại cửa sổ: tumbling, sliding, count
+  window_size_ms: 2000        # Kích thước cửa sổ thời gian: 2000ms (2 giây)
+
+# Chiến lược xử lý quá tải luồng (Backpressure Strategy Pattern)
+# Các lựa chọn: BUFFER, DROP, LATEST, ERROR
+backpressure:
+  strategy: BUFFER            # Chiến lược điều tiết: BUFFER (lưu trữ hàng đợi an toàn)
+  capacity: 1000              # Sức chứa tối đa của hàng đợi buffer (số lượng sự kiện)
+
+# Cấu hình các đầu ra dữ liệu (Data Sinks)
+sinks:
+  console: true               # In log định dạng ra màn hình terminal
+  file: dashboard/data.csv    # Ghi dữ liệu luồng ra file CSV phục vụ trực quan hóa
+  memory: true                # Lưu trữ hàng đợi trong RAM phục vụ kiểm thử và thống kê
+
+# Cấu hình giao diện giám sát thời gian thực (Dashboard)
+dashboard:
+  refresh_ms: 1000            # Chu kỳ làm mới biểu đồ dashboard: 1000ms (1 giây)
+

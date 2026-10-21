@@ -1,0 +1,64 @@
+# ===================================================================
+# Build & Binary Outputs
+# ===================================================================
+build/
+bin/
+lib/
+out/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+
+# ===================================================================
+# CMake & Compiler Generated Files
+# ===================================================================
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+CMakeUserPresets.json
+
+# ===================================================================
+# IDEs & Editors
+# ===================================================================
+.vscode/
+.idea/
+.vs/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===================================================================
+# Python & Dashboard Runtime Data
+# ===================================================================
+dashboard/__pycache__/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+venv/
+.venv/
+env/
+.env/
+
+# Sinh ra tại thời gian chạy (runtime generated file)
+dashboard/data.csv
+
+# ===================================================================
+# Logs & Temporary Files
+# ===================================================================
+*.log
+*.tmp

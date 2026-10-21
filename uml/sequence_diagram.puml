@@ -1,0 +1,89 @@
+@startuml sequence_diagram
+' ============================================================================
+' Sequence diagram: luồng sự kiện từ SensorSource → map → filter → window → Sink
+' Bao gồm alt block minh hoạ backpressure (demand > 0 vs demand == 0)
+' ============================================================================
+
+autonumber
+skinparam shadowing false
+
+actor       "App / Caller"      as App
+participant "SensorSource"      as Src
+participant "DataStream"        as DS
+participant "MapOperation"      as Map
+participant "FilterOperation"   as Filter
+participant "Window"            as Win
+participant "Sink (IDataSink)"  as Sink
+participant "Subscription"      as Sub
+
+' --- Giai đoạn 1: thiết lập pipeline ---
+== Thiết lập pipeline ==
+App -> Src   : subscribe(sink)
+activate Src
+Src -> DS    : new DataStream(this)
+DS -> Map    : map(fnTransform)        ' tạo MapOperation
+Map -> Filter: filter(predicate)       ' tạo FilterOperation
+Filter -> Win: window(TumblingWindow)  ' tạo Window + strategy
+Win -> Sink  : attach(sink)
+Sink --> Win : Subscription (demand ban đầu = 0)
+
+' --- Giai đoạn 2: vòng lặp xử lý event ---
+== Vòng lặp xử lý event ==
+loop Mỗi SensorReading do SensorSource sinh ra
+
+    Src -> DS    : onNext(reading)
+    activate DS
+    DS -> Map    : apply(reading)
+    activate Map
+    Map --> DS   : mapped
+    deactivate Map
+
+    DS -> Filter : apply(mapped)
+    activate Filter
+    Filter -> Filter : predicate(mapped)?
+
+    alt predicate == true (giữ lại)
+        Filter -> Win : onNext(filtered)
+        activate Win
+        Win -> Win : buffer.push(filtered)
+        Win -> Win : strategy.shouldEmit()?
+
+        alt demand > 0 (Sink sẵn sàng) / cửa sổ đầy
+            Win -> Sink : onNext(windowed)
+            activate Sink
+            Sink -> Sub  : request(n)     ' báo consumer đã sẵn sàng
+            Sink --> Win : (ack)
+            deactivate Sink
+        else demand == 0 (Sink bận) / chưa đủ cửa sổ
+            Win -> Win  : buffer giữ lại
+            Win -> Sub  : offer(windowed)
+            activate Sub
+            alt strategy == Buffer
+                Sub -> Sub : enqueue (chờ)
+            else strategy == Drop
+                Sub -> Sub : discard + dropped++
+            else strategy == DropOldest
+                Sub -> Sub : evict oldest + dropped++
+            else strategy == Block
+                Sub -> Sub : back-pressure → Producer chờ
+            end
+            deactivate Sub
+        end
+        deactivate Win
+    else predicate == false (loại bỏ)
+        Filter -> Filter : drop item
+    end
+
+    deactivate Filter
+    deactivate DS
+end
+
+' --- Giai đoạn 3: kết thúc ---
+== Dừng pipeline ==
+App -> Src    : cancel()
+Src -> DS     : onComplete()
+DS  -> Sink   : onComplete()
+Sink -> Sink  : flush() / close()
+deactivate Src
+
+@enduml
