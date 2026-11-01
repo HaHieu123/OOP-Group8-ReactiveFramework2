@@ -112,8 +112,8 @@ int main() {
         // ConsoleSink: In các window summary ra terminal
         auto console_sink = std::make_shared<ConsoleSink<std::string>>(true);
 
-        // FileSink: Ghi window summary ra file CSV cho Dashboard Python
-        auto file_sink = std::make_shared<FileSink<std::string>>("dashboard/data.csv", false);
+        // FileSink: Ghi telemetry cảm biến ra file CSV cho Dashboard Python
+        auto file_sink = std::make_shared<FileSink<SensorReading>>("dashboard/data.csv", true);
 
         // MemoryQueueSink: Lưu trữ để tính thống kê tổng cuối pipeline
         auto memory_sink = std::make_shared<MemoryQueueSink<std::string>>();
@@ -122,13 +122,15 @@ int main() {
         // [STAGE 3] Xây dựng Pipeline Fluent Interface
         //
         // SensorSource
-        //   └─ filter(severity >= WARN)       → Loại bỏ các bản tin INFO
-        //       └─ map(to_string)             → SensorReading → "S1|35.2|..."
-        //           └─ TumblingWindow(2s)     → Window<string> mỗi 2 giây
-        //               └─ map(window report) → "WINDOW: 5 events in 2s"
-        //                   └─ ConsoleSink    → In ra terminal
-        //                   └─ FileSink       → Ghi ra CSV
-        //                   └─ MemorySink     → Lưu trong RAM để thống kê
+        //   ├─ [Stream 1: Raw Telemetry]
+        //   │   └─ FileSink<SensorReading>    → Ghi CSV realtime cho Dashboard Python
+        //   │   └─ Metrics Collector          → Đo latency và đếm events/giây
+        //   │
+        //   └─ [Stream 2: Alert Windowing]
+        //       └─ filter(severity >= WARN)   → Lọc cảnh báo WARN, ERROR, FATAL
+        //           └─ TumblingWindow(2s)     → Gom nhóm sự kiện mỗi 2 giây
+        //               └─ ConsoleSink        → In báo cáo cảnh báo ra terminal
+        //               └─ MemorySink         → Lưu trong RAM để tổng kết
         // ==================================================================
 
         // Subscriber thô nhận SensorReading và đo latency
@@ -146,6 +148,10 @@ int main() {
                 }
                 g_total_events++;
                 g_events_this_second++;
+
+                // Ghi dữ liệu telemetry thời gian thực ra file CSV cho Dashboard
+                file_sink->onNext(r);
+
                 (void)recv_time;
             },
             [&](const std::exception& ex) {
@@ -153,6 +159,7 @@ int main() {
                 exit_code = 1;
             },
             [&]() {
+                file_sink->onComplete();
                 g_stop = true;
             }
         );
@@ -164,7 +171,6 @@ int main() {
                 std::string report = "[WINDOW] " +
                     std::to_string(win.size()) + " alerts in 2s window";
                 console_sink->onNext(report);
-                file_sink->onNext(report);
                 memory_sink->onNext(report);
             },
             [](const std::exception&) {},

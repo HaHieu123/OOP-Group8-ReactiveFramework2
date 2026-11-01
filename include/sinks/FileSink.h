@@ -78,6 +78,7 @@ public:
                               .count();
             file_ << now_ms << "," << value << "\n";
         }
+        file_.flush();
     }
 
     /**
